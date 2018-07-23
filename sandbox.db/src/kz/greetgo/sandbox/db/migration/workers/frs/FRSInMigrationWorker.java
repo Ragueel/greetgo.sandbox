@@ -5,8 +5,8 @@ import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -56,8 +56,8 @@ public class FRSInMigrationWorker extends SqlWorker implements AutoCloseable {
     CopyManager copyManager = new CopyManager((BaseConnection) connection);
     new File("build").mkdirs();
 
-    copyManager.copyOut("COPY (select * from temp_transaction where error!='' and error notnull) to STDOUT ", new PrintWriter("build/error_frs_transaction.csv", "UTF-8"));
-    copyManager.copyOut("COPY (select * from temp_account where error!='' and error notnull) to STDOUT ", new PrintWriter("build/error_frs_account.csv", "UTF-8"));
+    copyManager.copyOut("COPY (select * from temp_transaction where error!='' and error notnull) to STDOUT ", new FileOutputStream(new File("build/error_frs_transaction.csv")));
+    copyManager.copyOut("COPY (select * from temp_account where error!='' and error notnull) to STDOUT ", new FileOutputStream(new File("build/error_frs_account.csv")));
 
     connection.commit();
   }

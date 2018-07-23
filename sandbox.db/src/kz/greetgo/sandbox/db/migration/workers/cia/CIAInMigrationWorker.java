@@ -5,13 +5,13 @@ import org.postgresql.copy.CopyManager;
 import org.postgresql.core.BaseConnection;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-public class CIAInMigrationWorker extends SqlWorker implements AutoCloseable{
+public class CIAInMigrationWorker extends SqlWorker implements AutoCloseable {
 
   public PreparedStatement clientsStatement;
   public PreparedStatement phoneStatement;
@@ -168,9 +168,9 @@ public class CIAInMigrationWorker extends SqlWorker implements AutoCloseable{
     new File("build").mkdirs();
 
     CopyManager copyManager = new CopyManager((BaseConnection) connection);
-    copyManager.copyOut("COPY (select * from temp_client where error notnull) to STDOUT ", new PrintWriter("build/error_client.csv", "UTF-8"));
-    copyManager.copyOut("COPY (select * from temp_address where error notnull) to STDOUT ", new PrintWriter("build/error_address.csv", "UTF-8"));
-    copyManager.copyOut("COPY (select * from temp_phone where error notnull) to STDOUT ", new PrintWriter("build/error_phone.csv", "UTF-8"));
+    copyManager.copyOut("COPY (select * from temp_client where error notnull) to STDOUT ", new FileOutputStream(new File("build/error_client.csv")));
+    copyManager.copyOut("COPY (select * from temp_address where error notnull) to STDOUT ", new FileOutputStream(new File("build/error_address.csv")));
+    copyManager.copyOut("COPY (select * from temp_phone where error notnull) to STDOUT ", new FileOutputStream(new File("build/error_phone.csv")));
 
     connection.commit();
   }
