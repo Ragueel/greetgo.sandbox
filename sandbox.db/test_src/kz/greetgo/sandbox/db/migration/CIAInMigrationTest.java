@@ -13,7 +13,6 @@ import kz.greetgo.sandbox.db.stand.model.PhoneDot;
 import kz.greetgo.sandbox.db.test.dao.CIAMigrationTestDao;
 import kz.greetgo.sandbox.db.test.util.ParentTestNg;
 import kz.greetgo.util.RND;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.xml.sax.SAXException;
@@ -62,13 +61,13 @@ public class CIAInMigrationTest extends ParentTestNg {
   @Test
   public void testInsertClientIntoTemp() throws IOException, SAXException, ParserConfigurationException, SQLException {
 
-    try(Connection connection = connectToDatabase()){
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       List<TempClient> clients = createClientXmlFile();
 
       //
       //
-      XMLManager xmlManager  = new XMLManager("build/test_cia.xml");
+      XMLManager xmlManager = new XMLManager("build/test_cia.xml");
       xmlManager.load(connection, inMigration.clientsStatement, inMigration.phoneStatement, inMigration.addressStatement);
       //
       //
@@ -82,7 +81,7 @@ public class CIAInMigrationTest extends ParentTestNg {
 
   @Test
   public void testInsertPhoneIntoTemp() throws IOException, SAXException, ParserConfigurationException, SQLException {
-    try(Connection connection = connectToDatabase()) {
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       List<TempPhone> phones = createPhones();
 
@@ -103,7 +102,7 @@ public class CIAInMigrationTest extends ParentTestNg {
 
   @Test
   public void testClientErrorWithoutName() throws IOException, SAXException, ParserConfigurationException, SQLException {
-    try(Connection connection = connectToDatabase()) {
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       TempClient clientWithoutName = createClientWithoutName();
 
@@ -124,7 +123,7 @@ public class CIAInMigrationTest extends ParentTestNg {
 
   @Test
   public void testClientErrorWithoutSurname() throws IOException, SAXException, ParserConfigurationException, SQLException {
-    try(Connection connection = connectToDatabase()) {
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       TempClient clientWithoutName = createClientWithoutSurname();
 
@@ -144,7 +143,7 @@ public class CIAInMigrationTest extends ParentTestNg {
 
   @Test
   public void testClientErrorWithoutBirth() throws IOException, SAXException, ParserConfigurationException, SQLException {
-    try(Connection connection = connectToDatabase()) {
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       TempClient clientWithoutName = createClientWithoutBirth();
 
@@ -164,7 +163,7 @@ public class CIAInMigrationTest extends ParentTestNg {
 
   @Test
   public void testInsertAddressIntoTemp() throws IOException, SAXException, ParserConfigurationException, SQLException {
-    try(Connection connection = connectToDatabase()) {
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       List<TempAddress> addresses = createAddressXml();
 
@@ -185,7 +184,7 @@ public class CIAInMigrationTest extends ParentTestNg {
 
   @Test
   public void testInsertClientIntoReal() throws SQLException, IOException, ParserConfigurationException, SAXException {
-    try(Connection connection = connectToDatabase()) {
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       List<TempClient> clients = createClientXmlFile();
 
@@ -211,7 +210,7 @@ public class CIAInMigrationTest extends ParentTestNg {
 
   @Test
   public void testInsertPhoneIntoReal() throws IOException, SQLException, SAXException, ParserConfigurationException {
-    try(Connection connection = connectToDatabase()) {
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       insertClients();
 
@@ -239,7 +238,7 @@ public class CIAInMigrationTest extends ParentTestNg {
 
   @Test
   public void testInsertAddressIntoReal() throws IOException, SQLException, SAXException, ParserConfigurationException {
-    try(Connection connection = connectToDatabase()) {
+    try (Connection connection = connectToDatabase()) {
       CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
       insertClients();
 
@@ -262,6 +261,58 @@ public class CIAInMigrationTest extends ParentTestNg {
         assertThat(addressDots.get(i).house).isEqualTo(addresses.get(i).house);
         assertThat(addressDots.get(i).street).isEqualTo(addresses.get(i).street);
         assertThat(addressDots.get(i).type).isEqualTo(addresses.get(i).type);
+      }
+    }
+  }
+
+  @Test
+  public void testCheckFullMigration() throws SQLException, SAXException, IOException, ParserConfigurationException {
+    try (Connection connection = connectToDatabase()) {
+      createFullFile();
+      List<TempClient> tempClients = getClientsFromFullFile();
+      List<TempAddress> tempAddresses = getAddressesFromFullFile();
+      List<TempPhone> tempPhones = getPhonesFromFullFile();
+
+      CIAInMigrationWorker inMigration = new CIAInMigrationWorker(connection);
+
+      //
+      //
+      XMLManager xmlManager = new XMLManager("build/test_cia.xml");
+      xmlManager.load(connection, inMigration.clientsStatement, inMigration.phoneStatement, inMigration.addressStatement);
+      //
+      //
+
+      inMigration.updateError();
+      inMigration.insertIntoClient();
+      inMigration.insertIntoAddress();
+      inMigration.insertIntoPhone();
+
+      List<ClientDot> clientDots = ciaMigrationDao.get().getClientDots();
+
+      assertThat(clientDots).hasSameSizeAs(tempClients);
+      for (int i = 0; i < clientDots.size(); i++) {
+        assertThat(clientDots.get(i).name).isEqualTo(tempClients.get(i).name);
+        assertThat(clientDots.get(i).surname).isEqualTo(tempClients.get(i).surname);
+        assertThat(clientDots.get(i).patronymic).isEqualTo(tempClients.get(i).patronymic);
+      }
+
+      List<PhoneDot> phoneDots = ciaMigrationDao.get().getPhonesFromReal();
+
+      assertThat(phoneDots).hasSameSizeAs(tempPhones);
+
+      for (int i = 0; i < phoneDots.size(); i++) {
+        assertThat(phoneDots.get(i).number).isEqualTo(tempPhones.get(i).number);
+        assertThat(phoneDots.get(i).type).isEqualTo(tempPhones.get(i).type);
+      }
+
+      List<AddressDot> addressDots = ciaMigrationDao.get().getAddressDots();
+      assertThat(addressDots).hasSameSizeAs(tempAddresses);
+
+      for (int i = 0; i < addressDots.size(); i++) {
+        assertThat(addressDots.get(i).street).isEqualTo(tempAddresses.get(i).street);
+        assertThat(addressDots.get(i).flat).isEqualTo(tempAddresses.get(i).flat);
+        assertThat(addressDots.get(i).house).isEqualTo(tempAddresses.get(i).house);
+        assertThat(addressDots.get(i).type).isEqualTo(tempAddresses.get(i).type);
       }
     }
   }
@@ -519,6 +570,152 @@ public class CIAInMigrationTest extends ParentTestNg {
       + "\n<charm value=\"" + client.charm + "\"/>"
       + "\n<patronymic value=\"" + client.patronymic + "\"/>"
       + "\n</client>";
+  }
+
+  private List<TempPhone> getPhonesFromFullFile() {
+    List<TempPhone> phones = new ArrayList<>();
+
+    TempPhone tempPhone = new TempPhone();
+    tempPhone.client_id = "1";
+    tempPhone.number = "+7-555-555-55-55";
+    tempPhone.type = "WORKING";
+
+    phones.add(tempPhone);
+
+    TempPhone tempPhone1 = new TempPhone();
+    tempPhone.client_id = "1";
+    tempPhone1.number = "+7-666-666-66-66";
+    tempPhone1.type = "HOME";
+    phones.add(tempPhone1);
+
+    TempPhone tempPhone2 = new TempPhone();
+    tempPhone.client_id = "2";
+    tempPhone2.number = "+7-777-777-77-77";
+    tempPhone2.type = "WORKING";
+    phones.add(tempPhone2);
+
+    TempPhone tempPhone3 = new TempPhone();
+    tempPhone.client_id = "2";
+    tempPhone3.number = "+7-888-888-88-88";
+    tempPhone3.type = "HOME";
+    phones.add(tempPhone3);
+
+    return phones;
+  }
+
+
+  private List<TempClient> getClientsFromFullFile() {
+    List<TempClient> tempClients = new ArrayList<>();
+    TempClient tempClient = new TempClient();
+    tempClient.client_id = "1";
+    tempClient.name = "Client1";
+    tempClient.surname = "Client1";
+    tempClient.patronymic = null;
+    tempClient.gender = "FEMALE";
+    tempClient.birth = "1934-04-26";
+    tempClients.add(tempClient);
+
+    TempClient tempClient1 = new TempClient();
+    tempClient1.client_id = "2";
+    tempClient1.name = "Client3";
+    tempClient1.surname = "Client3";
+    tempClient1.patronymic = null;
+    tempClient1.gender = "FEMALE";
+    tempClient1.birth = "1934-04-26";
+    tempClients.add(tempClient1);
+
+    return tempClients;
+  }
+
+  private List<TempAddress> getAddressesFromFullFile() {
+    List<TempAddress> addresses = new ArrayList<>();
+    TempAddress address = new TempAddress();
+    address.client_id = "1";
+    address.street = "street1";
+    address.house = "house1";
+    address.flat = "flat1";
+    address.type = "FACT";
+    addresses.add(address);
+
+    TempAddress address1 = new TempAddress();
+    address1.client_id = "1";
+    address1.street = "street2";
+    address1.house = "house2";
+    address1.flat = "flat2";
+    address1.type = "REG";
+    addresses.add(address1);
+
+    TempAddress address2 = new TempAddress();
+    address2.client_id = "2";
+    address2.street = "street33";
+    address2.house = "house33";
+    address2.flat = "flat33";
+    address2.type = "FACT";
+    addresses.add(address2);
+
+    TempAddress address3 = new TempAddress();
+    address3.client_id = "2";
+    address3.street = "street44";
+    address3.house = "house44";
+    address3.flat = "flat44";
+    address3.type = "REG";
+    addresses.add(address3);
+
+    return addresses;
+  }
+
+  private void createFullFile() throws FileNotFoundException, UnsupportedEncodingException {
+    PrintWriter writer = new PrintWriter("build/test_cia.xml", "UTF-8");
+    writer.println("<cia>");
+    writer.println("<client id=\"1\"> <!-- 1 -->\n" +
+      "    <address>\n" +
+      "      <fact street=\"street1\" house=\"house1\" flat=\"flat1\"/>\n" +
+      "      <register street=\"street2\" house=\"house2\" flat=\"flat2\"/>\n" +
+      "    </address>\n" +
+      "    <charm value=\"Charm1\"/>\n" +
+      "    <workPhone>+7-555-555-55-55</workPhone>\n" +
+      "    <homePhone>+7-666-666-66-66</homePhone>\n" +
+      "    <gender value=\"FEMALE\"/>\n" +
+      "    <surname value=\"Client1\"/>\n" +
+      "    <birth value=\"1934-04-26\"/>\n" +
+      "    <name value=\"Client1\"/>\n" +
+      "  </client>");
+    writer.println("<client id=\"2\">\n" +
+      "    <address>\n" +
+      "      <fact street=\"street3\" house=\"house3\" flat=\"flat3\"/>\n" +
+      "      <register street=\"street4\" house=\"house4\" flat=\"flat4\"/>\n" +
+      "    </address>\n" +
+      "    <charm value=\"Charm2\"/>\n" +
+      "    <workPhone>+7-777-777-77-77</workPhone>\n" +
+      "    <homePhone>+7-888-888-88-88</homePhone>\n" +
+      "    <gender value=\"FEMALE\"/>\n" +
+      "    <surname value=\"Client2\"/>\n" +
+      "    <birth value=\"1934-04-26\"/>\n" +
+      "    <name value=\"Client2\"/>\n" +
+      "  </client>");
+    writer.println("<client id=\"2\">\n" +
+      "    <address>\n" +
+      "      <fact street=\"street33\" house=\"house33\" flat=\"flat33\"/>\n" +
+      "      <register street=\"street44\" house=\"house44\" flat=\"flat44\"/>\n" +
+      "    </address>\n" +
+      "    <charm value=\"Charm2\"/>\n" +
+      "    <gender value=\"FEMALE\"/>\n" +
+      "    <surname value=\"Client3\"/>\n" +
+      "    <birth value=\"1934-04-26\"/>\n" +
+      "    <name value=\"Client3\"/>\n" +
+      "  </client>");
+    writer.println("<client id=\"6-IHP-4P-IT-3nQMG0tQqB\"> <!-- 2 -->\n" +
+      "    <address>\n" +
+      "      <fact street=\"Гяd5птzикИ9JЕXЕКCdзХ\" house=\"0ф\" flat=\"Nm\"/>\n" +
+      "      <register street=\"ДЭMбmРЗzoБиQПMтHрксФ\" house=\"щП\" flat=\"Cт\"/>\n" +
+      "    </address>\n" +
+      "    <birth value=\"1985-06-04\"/>\n" +
+      "    <name value=\"дrS4чЪIhыт\"/>\n" +
+      "    <charm value=\"АцZДЁИдхЙЩ\"/>\n" +
+      "    <gender value=\"MALE\"/>\n" +
+      "  </client>");
+    writer.println("</cia>");
+    writer.close();
   }
 
   private String toAddressXML(TempAddress reg, TempAddress fact) {

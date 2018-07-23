@@ -174,25 +174,92 @@ public class FRSInMigrationTest extends ParentTestNg {
     }
   }
 
+  @Test
+  public void testCheckFullMigration() throws SQLException, IOException, ParseException {
+    try (Connection connection = connectToDatabase()) {
+      List<TempTransaction> transactions = createFullMigrationFile();
+
+      FRSInMigrationWorker frsInMigration = new FRSInMigrationWorker(connection);
+
+      JSONManager jsonManager = new JSONManager("build/test_frs.txt");
+      jsonManager.load(connection, frsInMigration.accountsStatement, frsInMigration.transactionStatement);
+
+      frsDao.get().insertNewClient(frsDao.get().insertNewCharm());
+
+      frsInMigration.updateError();
+      frsInMigration.insertIntoAccount();
+      frsInMigration.insertIntoTransaction();
+
+      List<ClientAccountDot> accountDots = frsDao.get().getAccountDots();
+
+      assertThat(accountDots).hasSize(1);
+
+      for (int i = 0; i < accountDots.size(); i++) {
+        assertThat(accountDots.get(i).number).isEqualTo("1");
+      }
+
+      List<ClientTransactionDot> transactionDots = frsDao.get().getTransactionsFromReal(accountDots.get(0).id);
+
+      assertThat(transactionDots).hasSize(2);
+
+      for (int i = 0;i<transactionDots.size();i++){
+        assertThat(transactionDots.get(i).money).isEqualTo(Double.valueOf(transactions.get(i).money));
+        assertThat(transactionDots.get(i).finished_at.toString()).isEqualTo(transactions.get(i).finished_at);
+      }
+    }
+  }
+
+  private List<TempTransaction> createFullMigrationFile() throws FileNotFoundException, UnsupportedEncodingException {
+    List<TempTransaction> tempTransactions = new ArrayList<>();
+    PrintWriter writer = new PrintWriter("build/test_frs.txt", "UTF-8");
+    TempAccount account = new TempAccount();
+    account.client_id = "1";
+    account.account_number = "1";
+    account.registered_at = new Timestamp(new Date().getTime()).toString();
+    writer.println(account.toJson());
+
+    TempTransaction transaction = new TempTransaction();
+    transaction.finished_at = new Timestamp(new Date().getTime()).toString();
+    transaction.money = "+100000";
+    transaction.account_number = "1";
+    transaction.transaction_type = RND.str(10);
+    tempTransactions.add(transaction);
+
+    writer.println(transaction.toJson());
+
+    TempAccount account1 = new TempAccount();
+    account1.client_id = "2";
+    account1.account_number = null;
+    account1.registered_at = new Timestamp(new Date().getTime()).toString();
+
+
+    TempTransaction transaction1 = new TempTransaction();
+    transaction1.finished_at = new Timestamp(new Date().getTime()).toString();
+    transaction1.money = "+100000";
+    transaction1.account_number = "1";
+    transaction1.transaction_type = "null";
+    writer.println(transaction1.toJson());
+
+    TempTransaction transaction2 = new TempTransaction();
+    transaction2.finished_at = new Timestamp(new Date().getTime()).toString();
+    transaction2.money = "+100000";
+    transaction2.account_number = "1";
+    transaction2.transaction_type = RND.str(10);
+    tempTransactions.add(transaction2);
+    writer.println(transaction2.toJson());
+
+    writer.close();
+
+    return tempTransactions;
+
+  }
+
   private TempAccount createAccountWithNullNumber() throws FileNotFoundException, UnsupportedEncodingException {
     PrintWriter writer = new PrintWriter("build/test_frs.txt", "UTF-8");
 
     TempAccount account = new TempAccount();
     account.client_id = "1";
     account.account_number = null;
-    account.registered_at = new Timestamp(new Date().getTime()).toString();
-
-    writer.println(account.toJson());
-    writer.close();
-    return account;
-  }
-
-  private TempAccount createAcccountWithNotExistingClientId() throws FileNotFoundException, UnsupportedEncodingException {
-    PrintWriter writer = new PrintWriter("build/test_frs.txt", "UTF-8");
-
-    TempAccount account = new TempAccount();
-    account.client_id = "10";
-    account.account_number = "1";
     account.registered_at = new Timestamp(new Date().getTime()).toString();
 
     writer.println(account.toJson());
